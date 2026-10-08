@@ -1,0 +1,18 @@
+{
+  "id": "#(petId)",
+  "category": {
+    "id": 1,
+    "name": "Perros"
+  },
+  "name": "#(petName)",
+  "photoUrls": [
+    "https://example.com/fotos/mascota.jpg"
+  ],
+  "tags": [
+    {
+      "id": 1,
+      "name": "qa-automation"
+    }
+  ],
+  "status": "#(petStatus)"
+}

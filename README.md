@@ -1,28 +1,20 @@
-# Sauce Demo – Prueba E2E del flujo de compra
+# Prueba técnica – QA Automation
 
-Prueba funcional automatizada (E2E) del flujo de compra en [saucedemo.com](https://www.saucedemo.com/) con **Serenity BDD + Screenplay + Cucumber** (Java 17, Maven).
+| Ejercicio | Tipo | Herramienta | Carpeta |
+|---|---|---|---|
+| 1 | E2E Web – flujo de compra en saucedemo.com | Serenity BDD + Screenplay + Cucumber | [ejercicio-1-e2e-saucedemo](ejercicio-1-e2e-saucedemo/) |
+| 2 | API REST – PetStore | Karate DSL | [ejercicio-2-api-petstore](ejercicio-2-api-petstore/) |
 
-```gherkin
-Escenario: Compra exitosa de dos productos hasta la confirmación del pedido
-  Cuando se autentica con el usuario "standard_user" y la contraseña "secret_sauce"
-  Y agrega los siguientes productos al carrito
-  Y visualiza el carrito de compras
-  Entonces debería ver en el carrito los productos seleccionados
-  Cuando completa el formulario de compra con sus datos
-  Entonces el resumen de la orden debería tener los totales correctos
-  Cuando finaliza la compra
-  Entonces debería ver el mensaje de confirmación "THANK YOU FOR YOUR ORDER"
-```
+Cada carpeta es un proyecto independiente con su `readme.txt` (pasos de ejecución),
+`conclusiones.txt` (hallazgos) y `reportes/` (evidencias).
+
+## Requisitos
+Java 17+, Maven 3.8+ y Google Chrome (solo para el ejercicio 1).
 
 ## Ejecución rápida
-
 ```bash
-mvn clean verify                          # con navegador visible
-mvn clean verify -Dheadless.mode=true     # sin interfaz gráfica
+cd ejercicio-1-e2e-saucedemo && mvn clean verify
+cd ejercicio-2-api-petstore && mvn clean test
 ```
 
-Reporte: `target/site/serenity/index.html`
-
-- Instrucciones paso a paso: [`readme.txt`](readme.txt)
-- Hallazgos y conclusiones: [`conclusiones.txt`](conclusiones.txt)
-- Evidencias de ejecución: [`reportes/`](reportes/)
+Autor: Juan Moreno

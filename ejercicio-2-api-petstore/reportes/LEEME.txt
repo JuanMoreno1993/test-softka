@@ -1,0 +1,8 @@
+En esta carpeta quedan las evidencias de la ejecución.
+
+Se llenan automáticamente al ejecutar ./ejecutar.sh (Linux/macOS) o ejecutar.bat (Windows):
+
+  reportes/karate-reports/karate-summary.html   Resumen de la ejecución (abrir en el navegador)
+  reportes/karate-reports/*.html                Detalle por feature: cada request y response completos
+  reportes/karate-reports/*.json                Resultados en formato JSON de Cucumber
+  reportes/karate.log                           Log completo de la ejecución

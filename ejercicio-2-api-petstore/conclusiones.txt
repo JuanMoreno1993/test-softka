@@ -1,0 +1,129 @@
+===============================================================================
+ CONCLUSIONES Y HALLAZGOS - PRUEBAS DE API PETSTORE CON KARATE
+===============================================================================
+
+1. RESULTADO DE LA EJECUCIÓN
+-------------------------------------------------------------------------------
+Fecha:      08/10/2026
+Escenarios: 2 (flujo E2E + negativo)
+Resultado:  EXITOSO
+Duración:   1404 ms
+Evidencia:  reportes/karate-reports/karate-summary.html
+
+
+2. CASOS DE PRUEBA: ENTRADAS, SALIDAS Y VALIDACIONES
+-------------------------------------------------------------------------------
+CASO 1 - Añadir una mascota
+  Endpoint:      POST https://petstore.swagger.io/v2/pet
+  Entrada:       Body JSON (data/pet-request.json) con id = petId,
+                 name = "Firulais", status = "available"
+  Salida:        200 OK + la mascota creada en formato JSON
+  Validaciones:  - Código 200
+                 - La respuesta cumple el esquema (pet-schema.json)
+                 - id, name y status son los enviados
+  Variables:     petId (generada), petName, petStatus, createRequest
+
+CASO 2 - Consultar la mascota por ID
+  Endpoint:      GET https://petstore.swagger.io/v2/pet/{petId}
+  Entrada:       petId del caso 1 (parámetro de ruta)
+  Salida:        200 OK + la mascota
+  Validaciones:  - Código 200
+                 - Cumple el esquema
+                 - id, name = "Firulais", status = "available"
+
+CASO 3 - Actualizar nombre y estatus
+  Endpoint:      PUT https://petstore.swagger.io/v2/pet
+  Entrada:       Mismo body con name = "Firulais Actualizado", status = "sold"
+  Salida:        200 OK + la mascota actualizada
+  Validaciones:  - Código 200
+                 - Cumple el esquema
+                 - name = "Firulais Actualizado", status = "sold"
+  Variables:     petName y petStatus se redefinen; updateRequest
+
+CASO 4 - Consultar por estatus
+  Endpoint:      GET https://petstore.swagger.io/v2/pet/findByStatus?status=sold
+  Entrada:       Parámetro de consulta status = sold
+  Salida:        200 OK + lista de todas las mascotas con estatus sold
+  Validaciones:  - Código 200
+                 - La lista no está vacía
+                 - Todas las mascotas de la lista tienen status = "sold"
+                 - La mascota actualizada aparece exactamente una vez,
+                   con el nombre y estatus nuevos
+  Variables:     isMyPet (función de filtro), myPet (mascota encontrada)
+
+CASO ADICIONAL - Consultar un ID inexistente
+  Endpoint:      GET https://petstore.swagger.io/v2/pet/{petId}
+  Entrada:       Un petId que nunca se creó
+  Salida:        404 Not Found + mensaje "Pet not found"
+
+
+3. HALLAZGOS
+-------------------------------------------------------------------------------
+H1. Consistencia eventual.
+    Al consultar una mascota justo después de crearla, la API a veces responde
+    404 aunque la creación haya retornado 200. La API pública corre en varios
+    servidores y la información tarda en propagarse. Se resolvió con
+    "retry until" de Karate (hasta 10 intentos cada 1.5 segundos) en lugar de
+    pausas fijas, que harían la prueba más lenta y seguiría siendo frágil.
+
+H2. IDs generados por el servidor que pierden precisión.
+    Si no se envía un id, el servidor asigna números muy grandes (cercanos al
+    máximo de un long de 64 bits). Estos valores superan el entero máximo seguro
+    de JavaScript (2^53) y al leerlos pueden cambiar sus últimos dígitos, por lo
+    que la consulta posterior por ID buscaría otra mascota. Por eso la prueba
+    envía su propio id único (milisegundos actuales).
+
+H3. Ambiente compartido.
+    Cualquier persona puede crear, modificar o borrar mascotas. La búsqueda por
+    estatus devuelve cientos de registros de otros usuarios, algunos con datos
+    incompletos. La prueba no depende de la cantidad ni del contenido de otros
+    registros: filtra por su propio id.
+
+H4. Código de respuesta en la creación.
+    POST /pet retorna 200 OK. La convención REST para la creación de un recurso
+    es 201 Created. No es un error funcional, pero es una observación de diseño
+    de la API.
+
+H5. La actualización requiere el objeto completo.
+    PUT /pet reemplaza toda la mascota: si se envían solo el nombre y el estatus,
+    el resto de campos se pierden. Por eso se reutiliza la misma plantilla JSON
+    con todos los campos y solo cambian las variables petName y petStatus.
+
+
+
+4. DECISIONES DE IMPLEMENTACIÓN
+-------------------------------------------------------------------------------
+- Karate DSL: permite escribir las pruebas de API en Gherkin sin step
+  definitions en Java, con validaciones de JSON integradas (match) y un
+  reporte HTML que muestra cada request y response.
+- Flujo encadenado en un escenario: los 4 casos dependen entre sí (el id del
+  caso 1 se usa en los demás), por eso se ejecutan en orden dentro de un mismo
+  escenario, separados y comentados como CASO 1 a CASO 4.
+- Plantilla de datos reutilizable (pet-request.json) con expresiones embebidas
+  #(variable): el mismo archivo sirve para crear y para actualizar.
+- Validación de contrato con un esquema (pet-schema.json): verifica tipos de
+  datos y que el estatus pertenezca a los valores permitidos
+  (available, pending, sold).
+- Configuración centralizada en karate-config.js (URL, timeouts, reintentos),
+  con soporte para varios ambientes mediante -Dkarate.env.
+- Tags (@E2E, @negativo) para ejecutar los escenarios de forma selectiva.
+
+
+5. CONCLUSIONES
+-------------------------------------------------------------------------------
+- Las operaciones de crear, consultar por ID, actualizar y consultar por
+  estatus funcionan según la documentación de Swagger.
+- Las pruebas sobre ambientes públicos o compartidos deben diseñarse para ser
+  independientes de los datos de otros usuarios y tolerantes a la latencia
+  (datos únicos por ejecución y reintentos con condición).
+- Validar solo el código de estado no es suficiente: la validación de esquema
+  y de valores concretos detecta respuestas incorrectas que retornan 200.
+
+
+6. RECOMENDACIONES / TRABAJO FUTURO
+-------------------------------------------------------------------------------
+- Más escenarios negativos: body inválido, estatus fuera del enum, id con
+  formato incorrecto en la ruta.
+- Limpieza de datos: eliminar la mascota al final (DELETE /pet/{petId}).
+- Pruebas guiadas por datos (Scenario Outline) con varias mascotas.
+- Ejecución en paralelo y en un pipeline de integración continua.
