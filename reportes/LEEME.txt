@@ -1,0 +1,8 @@
+En esta carpeta quedan las evidencias de la ejecución.
+
+Se llenan automáticamente al ejecutar ./ejecutar.sh (Linux/macOS) o ejecutar.bat (Windows):
+
+  reportes/serenity/index.html             Reporte completo de Serenity BDD (con capturas de cada paso)
+  reportes/serenity/serenity-summary.html  Reporte resumido de una sola página
+  reportes/cucumber/cucumber.html          Reporte HTML nativo de Cucumber
+  reportes/cucumber/cucumber.json          Resultados en formato JSON

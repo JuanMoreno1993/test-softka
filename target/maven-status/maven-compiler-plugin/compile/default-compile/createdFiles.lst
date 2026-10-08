@@ -1,0 +1,17 @@
+co/com/saucedemo/models/OrderSummary.class
+co/com/saucedemo/userinterfaces/CheckoutOverviewPage.class
+co/com/saucedemo/userinterfaces/CheckoutCompletePage.class
+co/com/saucedemo/tasks/AddProductsToCart.class
+co/com/saucedemo/models/Buyer.class
+co/com/saucedemo/tasks/FinishPurchase.class
+co/com/saucedemo/questions/ProductsInCart.class
+co/com/saucedemo/userinterfaces/LoginPage.class
+co/com/saucedemo/userinterfaces/InventoryPage.class
+co/com/saucedemo/tasks/Login.class
+co/com/saucedemo/userinterfaces/CheckoutInformationPage.class
+co/com/saucedemo/userinterfaces/CartPage.class
+co/com/saucedemo/questions/CartBadge.class
+co/com/saucedemo/questions/TheOrderSummary.class
+co/com/saucedemo/tasks/GoToCart.class
+co/com/saucedemo/tasks/CompleteCheckoutInformation.class
+co/com/saucedemo/questions/ConfirmationMessage.class
