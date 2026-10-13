@@ -1,0 +1,8 @@
+En esta carpeta quedan las evidencias de la ejecución.
+
+Se generan automáticamente al ejecutar ./ejecutar.sh (macOS/Linux) o ejecutar.bat (Windows):
+
+  dashboard.html   Dashboard web de k6 con gráficas de TPS, tiempos de respuesta y errores
+  resumen.txt      Resumen con el resultado de cada criterio de aceptación (CUMPLE / NO CUMPLE)
+  resumen.json     Todas las métricas de la ejecución en formato JSON
+  resultados.csv.gz   Detalle de cada petición (métrica, valor, timestamp, tags)

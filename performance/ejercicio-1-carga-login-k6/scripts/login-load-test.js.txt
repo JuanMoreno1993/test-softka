@@ -1,0 +1,143 @@
+// Prueba de carga del servicio de login de FakeStoreAPI
+// Ejecutar: k6 run scripts/login-load-test.js
+// Parámetros opcionales: -e TPS=25 -e DURACION=3m -e BASE_URL=https://fakestoreapi.com
+
+import http from 'k6/http';
+import { check } from 'k6';
+import { SharedArray } from 'k6/data';
+import { Rate, Trend } from 'k6/metrics';
+
+const BASE_URL = __ENV.BASE_URL || 'https://fakestoreapi.com';
+const TPS = parseInt(__ENV.TPS || '25', 10);          // transacciones por segundo objetivo (mínimo exigido: 20)
+const DURACION = __ENV.DURACION || '3m';              // duración de la carga sostenida
+const TIEMPO_MAXIMO_MS = 1500;                         // tiempo de respuesta máximo permitido
+const TASA_ERROR_MAXIMA = 0.03;                        // tasa de error aceptable (< 3 %)
+
+// ---------------------------------------------------------------------------
+// Datos de prueba: se leen UNA sola vez del CSV y se comparten entre todos los VUs
+// ---------------------------------------------------------------------------
+const usuarios = new SharedArray('usuarios', function () {
+  return open('../data/usuarios.csv')
+    .split(/\r?\n/)
+    .slice(1)                                  // omite el encabezado user,passwd
+    .filter((linea) => linea.trim() !== '')
+    .map((linea) => {
+      const [user, passwd] = linea.split(',');
+      return { user: user.trim(), passwd: passwd.trim() };
+    });
+});
+
+// Métricas propias para el reporte
+const loginExitoso = new Rate('login_exitoso');
+const tiempoLogin = new Trend('tiempo_login', true);
+
+// ---------------------------------------------------------------------------
+// Escenario y criterios de aceptación
+// ---------------------------------------------------------------------------
+export const options = {
+  scenarios: {
+    carga_login: {
+      // Modelo abierto: k6 inicia TPS iteraciones por segundo sin importar cuánto tarde el servidor,
+      // así se garantiza la tasa de transacciones exigida
+      executor: 'constant-arrival-rate',
+      rate: TPS,
+      timeUnit: '1s',
+      duration: DURACION,
+      preAllocatedVUs: 30,
+      maxVUs: 150,
+    },
+  },
+
+  thresholds: {
+    // Tiempo de respuesta: el 95 % de las peticiones debe responder en máximo 1,5 s
+    http_req_duration: [`p(95)<${TIEMPO_MAXIMO_MS}`],
+    // Tasa de error menor al 3 % del total de peticiones
+    http_req_failed: [`rate<${TASA_ERROR_MAXIMA}`],
+    // Throughput: al menos 20 transacciones por segundo
+    http_reqs: ['rate>=20'],
+    // Validaciones funcionales de la respuesta
+    checks: [`rate>${1 - TASA_ERROR_MAXIMA}`],
+    login_exitoso: [`rate>${1 - TASA_ERROR_MAXIMA}`],
+  },
+
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
+};
+
+// ---------------------------------------------------------------------------
+// Transacción: login (equivalente al CURL entregado en el enunciado)
+// ---------------------------------------------------------------------------
+export default function () {
+  // Rota los usuarios del CSV en orden según el número de iteración
+  const usuario = usuarios[__ITER % usuarios.length];
+
+  const payload = JSON.stringify({
+    username: usuario.user,
+    password: usuario.passwd,
+  });
+
+  const respuesta = http.post(`${BASE_URL}/auth/login`, payload, {
+    headers: { 'Content-Type': 'application/json' },
+    timeout: '60s',            // equivalente a --max-time 60 del CURL
+    tags: { transaccion: 'login' },
+  });
+
+  const ok = check(respuesta, {
+    'status es 200 o 201': (r) => r.status === 200 || r.status === 201,
+    'la respuesta contiene un token': (r) => {
+      try {
+        return typeof r.json('token') === 'string' && r.json('token').length > 0;
+      } catch (e) {
+        return false;
+      }
+    },
+    [`tiempo de respuesta <= ${TIEMPO_MAXIMO_MS} ms`]: (r) => r.timings.duration <= TIEMPO_MAXIMO_MS,
+  });
+
+  loginExitoso.add(ok);
+  tiempoLogin.add(respuesta.timings.duration);
+
+  if (!ok) {
+    console.warn(`Login fallido - usuario=${usuario.user} status=${respuesta.status} tiempo=${respuesta.timings.duration}ms`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Reportes al finalizar: resumen en consola, texto y JSON en la carpeta reportes/
+// ---------------------------------------------------------------------------
+export function handleSummary(data) {
+  const resumen = resumenTexto(data);
+  return {
+    stdout: resumen,
+    'reportes/resumen.txt': resumen,
+    'reportes/resumen.json': JSON.stringify(data, null, 2),
+  };
+}
+
+function resumenTexto(data) {
+  const m = data.metrics;
+  const valor = (metrica, stat) => (m[metrica] && m[metrica].values[stat] !== undefined ? m[metrica].values[stat] : 0);
+  const cumple = (metrica) => {
+    const t = m[metrica] && m[metrica].thresholds;
+    if (!t) return 'N/A';
+    return Object.values(t).every((x) => x.ok) ? 'CUMPLE' : 'NO CUMPLE';
+  };
+
+  const lineas = [
+    '',
+    '================ RESULTADO PRUEBA DE CARGA - LOGIN ================',
+    `Peticiones totales ........ ${valor('http_reqs', 'count')}`,
+    `TPS promedio .............. ${valor('http_reqs', 'rate').toFixed(2)}   (objetivo >= 20)        ${cumple('http_reqs')}`,
+    `Tiempo resp. promedio ..... ${valor('http_req_duration', 'avg').toFixed(2)} ms`,
+    `Tiempo resp. mediana ...... ${valor('http_req_duration', 'med').toFixed(2)} ms`,
+    `Tiempo resp. p(90) ........ ${valor('http_req_duration', 'p(90)').toFixed(2)} ms`,
+    `Tiempo resp. p(95) ........ ${valor('http_req_duration', 'p(95)').toFixed(2)} ms   (objetivo < ${TIEMPO_MAXIMO_MS} ms)   ${cumple('http_req_duration')}`,
+    `Tiempo resp. máximo ....... ${valor('http_req_duration', 'max').toFixed(2)} ms`,
+    `Tasa de error ............. ${(valor('http_req_failed', 'rate') * 100).toFixed(2)} %   (objetivo < 3 %)        ${cumple('http_req_failed')}`,
+    `Checks exitosos ........... ${(valor('checks', 'rate') * 100).toFixed(2)} %`,
+    `Iteraciones descartadas ... ${valor('dropped_iterations', 'count')}   (deben ser 0 para garantizar los TPS)`,
+    `VUs máximos usados ........ ${valor('vus_max', 'max')}`,
+    '===================================================================',
+    '',
+  ];
+  return lineas.join('\n');
+}

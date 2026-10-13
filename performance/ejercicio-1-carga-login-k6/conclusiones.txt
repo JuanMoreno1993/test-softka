@@ -1,0 +1,87 @@
+===============================================================================
+ CONCLUSIONES Y HALLAZGOS - PRUEBA DE CARGA DEL LOGIN (k6)
+===============================================================================
+
+1. RESULTADO DE LA EJECUCIÓN
+-------------------------------------------------------------------------------
+Fecha y hora:            08/10/2026
+Versión de k6:           v2.3.0 
+Escenario:               25 TPS constantes durante 3 minutos
+
+| Criterio                     | Objetivo     | Obtenido     | Resultado |
+|------------------------------|--------------|--------------|-----------|
+| Throughput (TPS)             | >= 20        |  24,97	     | CUMPLE    |
+| Tiempo de respuesta p(95)    | < 1500 ms    |  331.01 ms   | CUMPLE    |
+| Tiempo de respuesta máximo   | (referencia) |  721.12 ms   | CUMPLE    |
+| Tasa de error                | < 3 %        |  0.94%.      | CUMPLE    |
+| Peticiones totales           |              |  4500        |           |
+| Iteraciones descartadas      | 0            |  0           | CUMPLE    |
+
+Los valores salen de reportes/resumen.txt.
+Evidencia gráfica: reportes/dashboard.html
+
+
+2. DISEÑO DE LA PRUEBA
+-------------------------------------------------------------------------------
+- Modelo de carga ABIERTO (executor constant-arrival-rate): k6 inicia un número
+  fijo de transacciones por segundo, sin importar cuánto tarde el servidor en
+  responder. Con un modelo cerrado (VUs fijos con pausas), si el servidor se
+  pone lento, los usuarios virtuales envían menos peticiones y los TPS bajan
+  sin que la prueba lo evidencie. El modelo abierto garantiza los 20 TPS
+  exigidos y representa mejor el tráfico real de un login.
+- 25 TPS en lugar de 20: margen de seguridad para que el promedio supere el
+  mínimo aun con variaciones del generador de carga.
+- Datos parametrizados: el CSV se carga una sola vez con SharedArray (memoria
+  compartida entre VUs) y los 5 usuarios se rotan en orden.
+- Interpretación del criterio "tiempo de respuesta máximo 1,5 s":
+    * Threshold p(95) < 1500 ms: criterio estándar en pruebas de carga, evita
+      que una sola petición atípica (por ejemplo, un pico de red) invalide
+      toda la prueba.
+    * Además, un check por petición (tiempo <= 1500 ms) cuenta cuántas
+      peticiones superaron el límite; ese porcentaje entra en el umbral de
+      checks (> 97 %).
+    * Si se requiere un máximo absoluto, basta con cambiar el threshold a
+      'max<1500' en el script.
+- Validaciones funcionales: además del código HTTP, se valida que la respuesta
+  contenga un token. Un 200 sin token también se considera fallo.
+- Reportes: resumen en consola con CUMPLE / NO CUMPLE, dashboard HTML nativo
+  de k6, JSON con todas las métricas y CSV con el detalle de cada petición.
+
+
+3. HALLAZGOS
+-------------------------------------------------------------------------------
+[COMPLETAR con lo observado en la ejecución. Puntos a revisar:]
+
+- ¿Se sostuvieron los TPS durante toda la prueba? Revisar dropped_iterations:
+  si es mayor a 0, el servidor respondió tan lento que k6 no tuvo VUs
+  disponibles para iniciar todas las transacciones.
+- ¿Hubo diferencias de tiempo entre el inicio y el final de la prueba?
+  (gráfica de tiempos en dashboard.html)
+- ¿Qué códigos de error aparecieron? FakeStoreAPI es un servicio público y
+  gratuito: puede responder 429 (Too Many Requests) si aplica límites de
+  tasa, o 5xx si está saturado. Los fallos se registran en consola con el
+  usuario, el status y el tiempo.
+- ¿Algún usuario del CSV falla siempre? Eso indicaría un problema de datos
+  (credenciales inválidas) y no de rendimiento.
+- Componente de red: el servicio está en internet, por lo que el tiempo
+  medido incluye la latencia desde la máquina que ejecuta la prueba hasta
+  el servidor (revisar http_req_waiting vs http_req_connecting).
+
+
+4. CONCLUSIONES
+-------------------------------------------------------------------------------
+[COMPLETAR según el resultado. Ejemplo si todo cumple:]
+El servicio de login soporta una carga sostenida de 25 TPS con un tiempo de
+respuesta p(95) de ___ ms y una tasa de error de ___ %, cumpliendo los
+criterios de aceptación definidos (>= 20 TPS, p(95) < 1,5 s, error < 3 %).
+
+
+5. RECOMENDACIONES
+-------------------------------------------------------------------------------
+- Prueba de estrés: aumentar los TPS de forma escalonada (ramping-arrival-rate)
+  hasta encontrar el punto de quiebre del servicio.
+- Prueba de resistencia (soak): sostener la carga por 1 hora o más para
+  detectar degradación en el tiempo (fugas de memoria, conexiones).
+- Ejecutar desde una red cercana al servidor para aislar la latencia de red.
+- Ampliar el CSV con más usuarios para evitar efectos de caché por repetir
+  siempre las mismas credenciales.

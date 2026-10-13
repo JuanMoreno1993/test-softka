@@ -1,0 +1,14 @@
+
+================ RESULTADO PRUEBA DE CARGA - LOGIN ================
+Peticiones totales ........ 4500
+TPS promedio .............. 24.97   (objetivo >= 20)        CUMPLE
+Tiempo resp. promedio ..... 318.69 ms
+Tiempo resp. mediana ...... 313.10 ms
+Tiempo resp. p(90) ........ 331.13 ms
+Tiempo resp. p(95) ........ 344.01 ms   (objetivo < 1500 ms)   CUMPLE
+Tiempo resp. máximo ....... 721.12 ms
+Tasa de error ............. 0.04 %   (objetivo < 3 %)        CUMPLE
+Checks exitosos ........... 99.97 %
+Iteraciones descartadas ... 0   (deben ser 0 para garantizar los TPS)
+VUs máximos usados ........ 30
+===================================================================

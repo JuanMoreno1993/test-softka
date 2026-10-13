@@ -1,0 +1,22 @@
+===============================================================================
+ EJERCICIO 2 - ANÁLISIS DE RESULTADOS DE UNA PRUEBA DE CARGA
+===============================================================================
+
+Entregable:
+  InformeResultados.doc    Informe con hallazgos, conclusiones y recomendaciones,
+                           incluido el análisis del diagrama de usuarios virtuales
+                           vs peticiones por segundo.
+  InformeResultados.pdf    Misma información en PDF (GitHub lo muestra en el navegador).
+
+Insumos analizados (carpeta insumos/):
+  textSummary.txt          Resumen de k6 entregado en el enunciado (transcrito)
+  textSummary.png          Imagen original del resumen
+  diagrama-vus-vs-rps.png  Diagrama de monitoreo: VUs y http_reqs por segundo
+
+Resumen del análisis:
+  - 276.650 peticiones, 140 VUs, ≈ 63 minutos, 73,18 req/s promedio.
+  - Degradación de ≈ 9 minutos (01:51 a 02:00) con la carga constante:
+    el throughput cayó de ≈ 80 a ≈ 10 req/s.
+  - 6.759 errores (2,44 %): 88,6 % son 5xx y casi todos en la etapa sostenida.
+  - p(95) = 1,57 s (supera 1,5 s); máximo 29,93 s (posibles timeouts de 30 s).
+  - Veredicto: NO APROBADO hasta identificar la causa raíz.

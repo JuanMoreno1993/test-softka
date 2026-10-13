@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Ejecuta la prueba de carga del login y genera los reportes en la carpeta reportes/
+# Uso:
+#   ./ejecutar.sh                  -> 25 TPS durante 3 minutos (valores por defecto)
+#   ./ejecutar.sh 30 5m            -> 30 TPS durante 5 minutos
+set -u
+
+TPS="${1:-25}"
+DURACION="${2:-3m}"
+
+mkdir -p reportes
+
+echo ">> Prueba de carga del login: ${TPS} TPS durante ${DURACION}"
+
+# El dashboard web de k6 se exporta como HTML al terminar la prueba
+K6_WEB_DASHBOARD=true \
+K6_WEB_DASHBOARD_EXPORT=reportes/dashboard.html \
+k6 run \
+  -e TPS="${TPS}" \
+  -e DURACION="${DURACION}" \
+  --out csv=reportes/resultados.csv.gz \
+  scripts/login-load-test.js
+RESULT=$?
+
+echo ""
+echo ">> Reportes generados:"
+echo "   reportes/dashboard.html   Dashboard con gráficas (abrir en el navegador)"
+echo "   reportes/resumen.txt      Resumen con el cumplimiento de cada criterio"
+echo "   reportes/resumen.json     Todas las métricas en JSON"
+echo "   reportes/resultados.csv.gz   Detalle de cada petición"
+if [ $RESULT -ne 0 ]; then
+  echo ">> ATENCIÓN: uno o más criterios de aceptación (thresholds) NO se cumplieron (código ${RESULT})"
+fi
+exit $RESULT

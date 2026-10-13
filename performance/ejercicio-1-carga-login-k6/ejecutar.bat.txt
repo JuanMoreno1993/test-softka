@@ -1,0 +1,25 @@
+@echo off
+REM Ejecuta la prueba de carga del login y genera los reportes en la carpeta reportes\
+REM Uso:
+REM   ejecutar.bat              -> 25 TPS durante 3 minutos (valores por defecto)
+REM   ejecutar.bat 30 5m        -> 30 TPS durante 5 minutos
+
+set TPS=%1
+if "%TPS%"=="" set TPS=25
+set DURACION=%2
+if "%DURACION%"=="" set DURACION=3m
+
+if not exist reportes mkdir reportes
+
+echo ^>^> Prueba de carga del login: %TPS% TPS durante %DURACION%
+
+set K6_WEB_DASHBOARD=true
+set K6_WEB_DASHBOARD_EXPORT=reportes/dashboard.html
+k6 run -e TPS=%TPS% -e DURACION=%DURACION% --out csv=reportes/resultados.csv.gz scripts/login-load-test.js
+set RESULT=%ERRORLEVEL%
+
+echo.
+echo ^>^> Reportes generados en la carpeta reportes\
+echo    dashboard.html, resumen.txt, resumen.json, resultados.csv.gz
+if not "%RESULT%"=="0" echo ^>^> ATENCION: uno o mas criterios de aceptacion (thresholds) NO se cumplieron
+exit /b %RESULT%
